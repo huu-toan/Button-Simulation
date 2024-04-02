@@ -1,23 +1,15 @@
 #include <iostream>
+#include <chrono>
 #include <windows.h>
 #include <conio.h>
 #include <cstdlib>
+#include <ctime>
+#include <thread>
 
 using namespace std;
+using namespace chrono;
 
 // Định nghĩa các macro cho các nút bấm
-#define BUTTON_FUEL ButtonType::ButtonFuel
-#define BUTTON_SPEED ButtonType::ButtonSpeed
-#define BUTTON_TEMP ButtonType::ButtonTemp
-#define BUTTON_RESET ButtonType::ButtonReset
-#define BUTTON_OUT ButtonType::ButtonOut
-#define BUTTON_CHECK ButtonType::ButtonCheck
-
-// Định nghĩa các macro cho việc đọc và ghi trạng thái của các nút bấm
-#define WRITE_PIN(pin, state) HAL_GPIO_WritePin(pin, state)
-#define READ_PIN(pin) HAL_GPIO_ReadPin(pin)
-
-// Khởi tạo các nút bấm
 enum ButtonType {
     ButtonFuel,
     ButtonSpeed,
@@ -26,6 +18,11 @@ enum ButtonType {
     ButtonOut,
     ButtonCheck
 };
+
+enum state {
+    menu,
+    option
+} state;
 
 // Khai báo cấu trúc cho các ComSignal
 struct ComSignal {
@@ -85,72 +82,116 @@ bool HAL_GPIO_ReadPin(ButtonType pin) {
     return false; // Trường hợp không xác định
 }
 
-void HAL_GPIO_RESET_PIN() {
-    HAL_GPIO_WritePin(BUTTON_FUEL, false);
-    HAL_GPIO_WritePin(BUTTON_SPEED, false);
-    HAL_GPIO_WritePin(BUTTON_TEMP, false);
-    HAL_GPIO_WritePin(BUTTON_RESET, false);
-    HAL_GPIO_WritePin(BUTTON_OUT, false);
-    HAL_GPIO_WritePin(BUTTON_CHECK, false);
+// Hàm giả lập trạng thái reset các nút bấm
+void HAL_GPIO_RESET_PIN() { 
+    HAL_GPIO_WritePin(ButtonFuel, false);
+    HAL_GPIO_WritePin(ButtonSpeed, false);
+    HAL_GPIO_WritePin(ButtonTemp, false);
+    HAL_GPIO_WritePin(ButtonReset, false);
+    HAL_GPIO_WritePin(ButtonOut, false);
+    HAL_GPIO_WritePin(ButtonCheck, false);
+}
+
+int keyint = 0;
+
+int isQuitKeyPressed() {
+    keyint = 0;
+    if (_kbhit()) { 
+        char key = _getch(); // Đọc ký tự từ bàn phím
+            if (state == menu) {
+                if (key >= '1' && key <= '5') {
+                    keyint = int(key)-48;
+                    return keyint; 
+                }
+            }
+            if (state == option)
+            {
+                if (key == '1' || key == '2') {
+                    keyint = int(key)-48;
+                    return keyint; 
+                }
+            }
+            
+    }
+    return keyint = 0; // Trả về 0 nếu không có ký tự thoát được nhấn
+}
+
+void Time_Count(int n) {
+    int second = 0;
+    auto start = high_resolution_clock::now();
+    cout << endl;
+    while (second < n) {
+        auto end = high_resolution_clock::now();
+        cout << "Clock time: " << (n - int(duration_cast<seconds>(end - start).count())) << flush << '\r';
+        Sleep(1000);
+        second++;
+            //system("cls");
+            //cout << isQuitKeyPressed(); // Kiểm tra xem có phím thoát được nhấn không
+            int temp = isQuitKeyPressed();
+            if(temp >=1 && temp <= 5) {
+                second = n+1;
+            }
+    }
+}
+
+void transfer(int &k, int c) {
+    Time_Count(c);
+    k = keyint;
 }
 
 class myCar {
 private:
-    float speed = 40;
-    float temp = 27;
-    float fuel = 100;
+    int speed = rand() % 100 + 1;
+    int temp = rand() % 30 + 10;   
+    int fuel = rand() % 200 + 50;
 public:
     myCar() {
-        int prevOption = 0; // Biến mới để lưu trạng thái của inneroption trước khi reset
-
+        
         while(true) {
-            prevOption = 0;
             system("cls");
-            cout << "Select the option: \n1) ButtonFuel\n2) ButtonSpeed\n3) ButtonTemp\n4) ButtonReset\n5) ButtonOut\n";
+            cout << "Select the option: \n\n1) ButtonFuel\n2) ButtonSpeed\n3) ButtonTemp\n4) ButtonReset\n5) ButtonOut\n";
             int n;
-            cout << "Please fill your option here: ";
-            cin >> n;
+            state = menu;
+            transfer(n, 30);
+            
 
             // Ghi trạng thái của nút bấm tương ứng
             switch (n) {
                 case 1:
-                    HAL_GPIO_WritePin(BUTTON_FUEL, true);
+                    HAL_GPIO_WritePin(ButtonFuel, true);
                     break;
                 case 2:
-                    HAL_GPIO_WritePin(BUTTON_SPEED, true);
+                    HAL_GPIO_WritePin(ButtonSpeed, true);
                     break; 
                 case 3:
-                    HAL_GPIO_WritePin(BUTTON_TEMP, true);
+                    HAL_GPIO_WritePin(ButtonTemp, true);
                     break;
                 case 4:
-                    HAL_GPIO_WritePin(BUTTON_RESET, true);
+                    HAL_GPIO_WritePin(ButtonReset, true);
                     break;  
                 case 5:
-                    HAL_GPIO_WritePin(BUTTON_OUT, true);
-                    break;              
+                    HAL_GPIO_WritePin(ButtonOut, true);
+                    break;            
             }
+
+            // Khai báo inneroption ở đây để reset giá trị của inneroption sau mỗi lần lặp
+            int inneroption = 0; 
 
             // Đọc trạng thái của các nút bấm
-            int inneroption = 0; // Khai báo ở đây để reset giá trị của inneroption sau mỗi lần lặp
-            if (HAL_GPIO_ReadPin(BUTTON_FUEL)) {
+            if (HAL_GPIO_ReadPin(ButtonFuel)) {
                 inneroption = 1;
             }
-            else if (HAL_GPIO_ReadPin(BUTTON_SPEED)) {
+            else if (HAL_GPIO_ReadPin(ButtonSpeed)) {
                 inneroption = 2;
             }
-            else if (HAL_GPIO_ReadPin(BUTTON_TEMP)) {
+            else if (HAL_GPIO_ReadPin(ButtonTemp)) {
                 inneroption = 3;
             }
-            else if (HAL_GPIO_ReadPin(BUTTON_RESET)) {
-                inneroption = prevOption; // Gán giá trị trước khi reset cho inneroption
+            else if (HAL_GPIO_ReadPin(ButtonReset)) {
+                inneroption = 0; 
             }
-            else if (HAL_GPIO_ReadPin(BUTTON_OUT)) {
+            else if (HAL_GPIO_ReadPin(ButtonOut)) {
                 break;
-            }
-
-            // Cập nhật giá trị của prevOption
-            if (inneroption != 0) {
-                prevOption = inneroption;
             }
 
             // Hiển thị thông tin và thực hiện các tác vụ
@@ -168,76 +209,90 @@ public:
                 cout << "restart";
                 Sleep(1000);
             }
+
             // Kiểm tra các tác vụ nếu cần thiết
             switch (inneroption) {
                 case 1:
                 case 2:
                 case 3: 
-                    cout << "Your option: " << inneroption << endl;
-                    cout << "Do you want to continue?\n1) Yes\n0) No\n";
-                    cout << "Your option: ";
-                    bool optioncheck;
-                    cin >> optioncheck;
-                    if (optioncheck) {
-                        HAL_GPIO_WritePin(BUTTON_CHECK, true);
-                    } else {
-                        HAL_GPIO_WritePin(BUTTON_RESET, true);
+                    cout << "Your option: " << inneroption << "\n" << endl;
+                    cout << "Do you want to continue?\n1) Yes\n2) No\n";
+                    int optioncheck;
+                    //int preoptioncheck =detect(optioncheck);
+                    state = option;
+                    transfer(optioncheck, 20);
+                    if (optioncheck == 1) {
+                        HAL_GPIO_WritePin(ButtonCheck, true);
+                    } else if (optioncheck == 2) {
+                        HAL_GPIO_WritePin(ButtonReset, true);
                     }
                     
-                    if (HAL_GPIO_ReadPin(BUTTON_RESET)) {
+                    if (HAL_GPIO_ReadPin(ButtonReset)) {
                         system("cls");
                         break;
-                    } else if(HAL_GPIO_ReadPin(BUTTON_CHECK)) {
+                    } else if(HAL_GPIO_ReadPin(ButtonCheck)) {
                         system("cls");
+                    if(optioncheck == 1 || optioncheck == 2) {
+                         system("cls");
+                            cout << "Your option is: " << optioncheck << endl;
+                            Sleep(1000);
+                            system("cls");
+                            cout << "Move to option: " << optioncheck << endl;
+                            Sleep(1000);
+                            system("cls");
+                    }
+
                         if (inneroption == 1) {
-                            cout << "Your information is: " << speed << "km/h" << endl;
+                            cout << "Your information is: " << fuel << "ml" << endl;
+                            
                         }
                         else if (inneroption == 2) {
-                            cout << "Your information is: " << temp << "*C" << endl;
+                            cout << "Your information is: " << speed << "km/h" << endl;
                         }
                         else if (inneroption == 3)
                         {
-                            cout << "Your information is: " << fuel << "l" << endl;   
+                            cout << "Your information is: " << temp << "*C" << endl;
                         }
                         Sleep(2000);
                     }
                     break;
             }
             HAL_GPIO_RESET_PIN();
+
         }
     }
 
-    float calspeed() {
-        return speed;
-    }
-    float caltemp() {
-        return temp;
-    }
-    float calfuel() {
-        return fuel;
-    }
-
-    ~myCar() {
+    virtual ~myCar() {
         cout << "Calling destructor";
     }
 };
 
-int main() {
-    // bool running = true; Biến cờ cho biết liệu chương trình đang chạy hay không
+class myCar_shutdown : public myCar {
+    public:
+        myCar_shutdown () {
+            system("cls"); 
+            cout << "Shutdown"; 
+            Sleep(2000);
+            system("cls"); 
 
+            cout << "Press any key to start...";
+            getch(); 
+
+            system("cls"); 
+            cout << "Restarting...";
+        }
+        ~myCar_shutdown () {}
+};
+
+void carstart() {
     while (1) {
-        myCar car;
-        system("cls"); 
-        cout << "Shutdown"; 
-        Sleep(2000);
-        system("cls"); 
-
-        cout << "Press any key to start...";
-        getch(); 
-
-        system("cls"); 
-        cout << "Restarting...";
+        myCar_shutdown *ArcadiaCar_shutdown = new myCar_shutdown();  
+        myCar *ArcadiaCar = ArcadiaCar_shutdown;
+        delete ArcadiaCar;
     }
+}
 
+int main() {
+    carstart();
     return 0;
 }
